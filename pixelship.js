@@ -36,7 +36,35 @@ Input.update = function(){
 	Input.b = btn(5);
 }
 
-//var GenericProjectile for ship plus enemies, x position, y position + velocity
+Projectiles = {
+	list: [],
+	update: function(){
+		this.list = this.list.filter(function(projectile){
+			Projectile.update.call(projectile);
+			return projectile.timeAlive < projectile.lifeTime;
+		});
+	}
+}
+
+function Projectile(x, y, dx, dy, lifeTime, drawFunc){
+	this.x = x;
+	this.y = y;
+	this.dx = dx;
+	this.dy = dy;
+	this.timeAlive = 0;
+	this.lifeTime = lifeTime;
+	this.draw = drawFunc;
+	Projectiles.list.push(this);
+}
+
+Projectile.update = function(){
+	this.x += this.dx;
+	this.y += this.dy;
+	this.timeAlive += DT;
+	this.draw();
+}
+
+
 
 var Ship = {
 	x:120, y:120, 
@@ -52,7 +80,10 @@ Ship.cannon = {
 			//get ship.analyze() array
 			//find each cannon pixel
 			//new shot at ship.x + array.x, ship.y + array.y-1
-			trace('PEW!!!');
+			var projectile = new Projectile(
+				Ship.x, Ship.y, 0, -2, .5, 
+				function(){line(this.x, this.y, this.x, this.y + 5, 6)}
+			);
 		}
 	}
 }
@@ -62,7 +93,7 @@ Ship.draw = function(){
 }
 
 Ship.update = function(){
-	Ship.cannon.timer.update();//should be put in an update list
+	Ship.cannon.timer.update();
 	Ship.draw();
 	Ship.control();
 
@@ -100,7 +131,6 @@ Ship.analyze = function(tileNumber){
 			tileArrX = [];
 		}
 	}
-
 	return tileArr;
 }
 
@@ -115,9 +145,13 @@ Sky.update = function(){ //generate stars
 	memcpy(SCREEN, MAP, SCREEN_SIZE);
 }
 
+var tile0 = Ship.analyze(0);
+var tile1 = Ship.analyze(1);
+
 function TIC(){
 	cls();
 	Input.update();
 	Sky.update();
 	Ship.update();
+	Projectiles.update();
 }
