@@ -28,15 +28,18 @@ function PoV_Interval(delayTime){
 	}
 }
 
-var Input = {x:0, y:0, a:false, b:false};
-Input.update = function(){
-    Input.x = -1 * btn(2) || 1 * btn(3) || 0;
-	Input.y = -1 * btn(0) || 1 * btn(1) || 0;
-	Input.a = btn(4); 
-	Input.b = btn(5);
-}
+var Input = {
+	x: 0, y: 0, a: false, b: false,
+	update: function(){
+		this.x = -1 * btn(2) || 1 * btn(3) || 0;
+		this.y = -1 * btn(0) || 1 * btn(1) || 0;
+		this.a = btn(4); 
+		this.b = btn(5);
+	}
+};
 
-function GetPixelArray(tileNumber){
+var Pixels = {};
+Pixels.update = function(tileNumber){
 	if(!tileNumber){tileNumber = 0;}
 	var tileArr = [];
 	var tileArrX = [];
@@ -54,18 +57,18 @@ function GetPixelArray(tileNumber){
 	return tileArr;
 }
 
-GetPixelLocations = function (tileArray, tileNumber, pixelIndex){
-	var locations = [];
+Pixels.coords = function (tileArray, tileNumber, pixelIndex){
+	var coords = [];
 	var tOfsX = (tileNumber % 16) * 8;
 	var tOfsY = Math.floor(tileNumber / 16) * 8;
 	for (var y = 0; y < 8; y++){
 		for (var x = 0; x < 8; x++){
 			if(tileArray[y][x]==pixelIndex){
-				locations.push({x:x + tOfsX, y:y + tOfsY});
+				coords.push({x:x + tOfsX, y:y + tOfsY});
 			}
 		}
 	}
-	return locations;
+	return coords;
 }
 
 Projectiles = {
@@ -96,33 +99,38 @@ Projectile.update = function(){
 	this.draw();
 }
 
+//if more than 50% damaged, ship destroyed
 var Ship = {
 	x:120, y:120, 
 	dx:0, dy:0, 
 	damp: 0.04, 
 	accel: .25,
-	tile0: function(){GetPixelArray(0);},
-	tile1: function(){GetPixelArray(1);}
+	tile0: function(){return Pixels.update(0);},
+	tile1: function(){return Pixels.update(1);}
 };
 
 Ship.cannon = {
 	timer: new PoV_Interval(0.3),
 	update: function(){this.timer.update();},
-	laser: function(){
-		line(this.x, this.y - 5 , this.x, this.y + 1, 6)
-	},
-	pixels: [],
+	coords: [],
 	updatePixels: function(){
-
+		const laser = 0x6;
+		var tile0 = Ship.tile0();
+		var arr0 = Pixels.coords(tile0,0,laser);
+		var tile1 = Ship.tile1();
+		var arr1 = Pixels.coords(tile1,1,laser);
+		this.coords = arr0.concat(arr1);
 	},
 	fire: function(){
 		if (!this.timer.poll()){return;}
-		this.pixels.forEach(function(pixel){
+		this.coords.forEach(function(pixel){
 			var projectile = new Projectile(
 				Ship.x + pixel.x, 
 				Ship.y + pixel.y, 
 				0, -2, .5,
-				this.laser
+				function(){
+					line(this.x, this.y - 5 , this.x, this.y + 1, 6);
+				}
 			);
 		});	
 	}
@@ -139,6 +147,7 @@ Ship.update = function(){
 	Ship.battery.update();
 	Ship.draw();
 	Ship.control();
+
 	Ship.dx *= (1-Ship.damp);
 	Ship.dy *= (1-Ship.damp);
 	Ship.x += Ship.dx;
@@ -153,12 +162,10 @@ Ship.control = function(){
 	if (Input.a){Ship.cannon.fire();}
 }
 
-//call each time damage to ship occurs
-//if more than 50% damaged, ship destroyed
-
-
-
-var Sky = {};
+var Sky = {
+	idx:0,
+	size:0,
+};
 Sky.update = function(){ //generate stars
 	memset(MAP, 0, HLINE);
 	for(var addr = MAP; addr < MAP + HLINE; addr++){
@@ -169,10 +176,7 @@ Sky.update = function(){ //generate stars
 	memcpy(SCREEN, MAP, SCREEN_SIZE);
 }
 
-//var tile0 = Ship.analyze(0);
-//var tile1 = Ship.analyze(1);
-//var cannonPixels = Ship.getCannons(tile0, 0);
-//cannonPixels = cannonPixels.concat(Ship.getCannons(tile1, 1));
+Ship.cannon.updatePixels();
 
 function TIC(){
 	cls();
